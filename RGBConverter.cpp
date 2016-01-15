@@ -11,6 +11,8 @@
  */
 #include "RGBConverter.h"
 
+#include <math.h>
+
 /**
  * Converts an RGB color value to HSL. Conversion formula
  * adapted from http://en.wikipedia.org/wiki/HSL_color_space.
@@ -22,13 +24,13 @@
  * @param   Number  b       The blue color value
  * @return  Array           The HSL representation
  */
-void RGBConverter::rgbToHsl(byte r, byte g, byte b, double hsl[]) { 
+void RGBConverter::rgbToHsl(unsigned char r, unsigned char g, unsigned char b, double hsl[]) { 
     double rd = (double) r/255;
     double gd = (double) g/255;
     double bd = (double) b/255;
     double max = threeway_max(rd, gd, bd);
     double min = threeway_min(rd, gd, bd);
-    double h, s, l = (max + min) / 2;
+    double h=0, s=0, l = (max + min) / 2;
 
     if (max == min) {
         h = s = 0; // achromatic
@@ -60,17 +62,53 @@ void RGBConverter::rgbToHsl(byte r, byte g, byte b, double hsl[]) {
  * @param   Number  l       The lightness
  * @return  Array           The RGB representation
  */
-void RGBConverter::hslToRgb(double h, double s, double l, byte rgb[]) {
-    double r, g, b;
+void RGBConverter::hslToRgb(double h, double s, double l, unsigned char rgb[]) {
+    double r=0, g=0, b=0;
+
+    int i = int(h * 6);
+    double f = h * 6 - i;
+    double d = l < 0.5 ? l * s : (1 - l) * s;
+    double p = l - d;
+    double v = l + d;
+    double t = v - 2 *d * (1 - f);
+    double q = v - 2 * d * f;
+
+    switch(i % 6){
+        case 0: r = v, g = t, b = p; break;
+        case 1: r = q, g = v, b = p; break;
+        case 2: r = p, g = v, b = t; break;
+        case 3: r = p, g = q, b = v; break;
+        case 4: r = t, g = p, b = v; break;
+        case 5: r = v, g = p, b = q; break;
+    }
+
+    rgb[0] = r * 255;
+    rgb[1] = g * 255;
+    rgb[2] = b * 255;
+}
+ 
+/**
+ * Converts an HSL color value to RGB. Conversion formula
+ * adapted from http://en.wikipedia.org/wiki/HSL_color_space.
+ * Assumes h, s, and l are contained in the set [0, 1] and
+ * returns r, g, and b in the set [0, 255].
+ *
+ * @param   Number  h       The hue
+ * @param   Number  s       The saturation
+ * @param   Number  l       The lightness
+ * @return  Array           The RGB representation
+ */
+void RGBConverter::hslToRgb2(double h, double s, double l, unsigned char rgb[]) {
+    double r=0, g=0, b=0;
 
     if (s == 0) {
         r = g = b = l; // achromatic
     } else {
         double q = l < 0.5 ? l * (1 + s) : l + s - l * s;
         double p = 2 * l - q;
-        r = RGBConverter::hue2rgb(p, q, h + 1/3);
+        r = RGBConverter::hue2rgb(p, q, h + 1/3.);
         g = RGBConverter::hue2rgb(p, q, h);
-        b = RGBConverter::hue2rgb(p, q, h - 1/3);
+        b = RGBConverter::hue2rgb(p, q, h - 1/3.);
     }
 
     rgb[0] = r * 255;
@@ -89,12 +127,12 @@ void RGBConverter::hslToRgb(double h, double s, double l, byte rgb[]) {
  * @param   Number  b       The blue color value
  * @return  Array           The HSV representation
  */
-void RGBConverter::rgbToHsv(byte r, byte g, byte b, double hsv[]) {
+void RGBConverter::rgbToHsv(unsigned char r, unsigned char g, unsigned char b, double hsv[]) {
     double rd = (double) r/255;
     double gd = (double) g/255;
     double bd = (double) b/255;
     double max = threeway_max(rd, gd, bd), min = threeway_min(rd, gd, bd);
-    double h, s, v = max;
+    double h=0, s=0, v = max;
 
     double d = max - min;
     s = max == 0 ? 0 : d / max;
@@ -128,8 +166,8 @@ void RGBConverter::rgbToHsv(byte r, byte g, byte b, double hsv[]) {
  * @param   Number  v       The value
  * @return  Array           The RGB representation
  */
-void RGBConverter::hsvToRgb(double h, double s, double v, byte rgb[]) {
-    double r, g, b;
+void RGBConverter::hsvToRgb(double h, double s, double v, unsigned char rgb[]) {
+    double r=0, g=0, b=0;
 
     int i = int(h * 6);
     double f = h * 6 - i;
@@ -152,18 +190,18 @@ void RGBConverter::hsvToRgb(double h, double s, double v, byte rgb[]) {
 }
  
 double RGBConverter::threeway_max(double a, double b, double c) {
-    return max(a, max(b, c));
+    return fmax(a, fmax(b, c));
 }
 
 double RGBConverter::threeway_min(double a, double b, double c) {
-    return min(a, min(b, c));
+    return fmin(a, fmin(b, c));
 }
 
 double RGBConverter::hue2rgb(double p, double q, double t) {
     if(t < 0) t += 1;
     if(t > 1) t -= 1;
-    if(t < 1/6) return p + (q - p) * 6 * t;
-    if(t < 1/2) return q;
-    if(t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+    if(t < 1/6.) return p + (q - p) * 6 * t;
+    if(t < 1/2.) return q;
+    if(t < 2/3.) return p + (q - p) * (2/3. - t) * 6;
     return p;
 }
